@@ -2,7 +2,14 @@ include("fractal_img_parallel.jl")
 using Images
 using ImageIO
 using ImageFiltering
+using Statistics
 
+"""
+graybrotH(xRes, xMin, xMax, yMax, its)
+
+Helper function which generates only the raw numerical data for the mandelbrot set before turning it into an RGB image. 
+Used here for edge detection analysis when finding points of interest.
+"""
 function graybrotH(xRes, xMin, xMax, yMax, its)
     xDist = xMax-xMin
 
@@ -20,7 +27,13 @@ function graybrotH(xRes, xMin, xMax, yMax, its)
     matrix2
 end
 
-function smartMandelbrotH(xRes, xMin, xMax, yMax, its)
+"""
+smartMandelbrot(xRes, xMin, xMax, yMax, its, coloring = sWiki)
+
+An improvement of my mandelbrot generation function. Previous versions had bad performance when they contained many points of the 
+Mandelbrot set itself, due to their maximal number of iterations computed. Here they 
+"""
+function smartMandelbrot(xRes, xMin, xMax, yMax, its, coloring = sWiki)
     sketch = graybrotH(div(xRes,10), xMin, xMax, yMax, its)
     edginess = abs.(imfilter(sketch, Kernel.Laplacian()))
     marked = zeros(Bool, div(xRes,10),div(xRes,10))
@@ -51,15 +64,15 @@ function smartMandelbrotH(xRes, xMin, xMax, yMax, its)
             end 
         end
     end
-    sWiki.(matrix2)
+    coloring.(matrix2)
 end
 
-gb = graybrotH(1000, -1.6, -1.3, 0.1, 100)
+"""
+mbPointOfInterest(xRes, xMin, xMax, yMax, its)
 
-l = Kernel.Laplacian()
-
-conv = imfilter(gb, l)
-
+Given a window to view and number of iterations in the Mandelbrot set, use the discrete Laplacian to highlight edges. 
+Pick the indices of a random point, weighted by the square of the discrete Laplacian.
+"""
 function mbPointOfInterest(xRes, xMin, xMax, yMax, its)
     imgmat = graybrotH(xRes, xMin, xMax, yMax, its)
     moddedimg = imfilter(imgmat, Kernel.Laplacian())
@@ -80,12 +93,11 @@ function mbPointOfInterest(xRes, xMin, xMax, yMax, its)
         end
     end
 end  
+"""
+showPointsOfInterest(points, xRes, xMin, xMax, yMax, its)
 
-
-Gray.(graybrotH(1000, -1.6, -1.3, 0.1, 100))
-Gray.(imfilter(graybrotH(1000, -1.6, -1.3, 0.1, 100), Kernel.Laplacian()))
-mbPointOfInterest(1000, -1.6, -1.3, 0.1, 100)
-
+Demonstrate mbPointOfInterest by highlighting points number of chosen points in red.
+"""
 function showPointsOfInterest(points, xRes, xMin, xMax, yMax, its)
     f = t -> t*RGB(1,1,1)
     img = f.(imfilter(graybrotH(xRes, xMin, xMax, yMax, its), Kernel.Laplacian()))
@@ -102,8 +114,12 @@ function showPointsOfInterest(points, xRes, xMin, xMax, yMax, its)
     img
 end 
 
-showPointsOfInterest(100, 300, -1.4, -1.3, 0.1, 100)
-begin
+"""
+mbRandZoom(endres, rounds, xMin, xMax, yMax, zoomfac, its)
+
+Start with the given xMin, xMax, yMax window. Then zoom in with a factor of zoomfac \"rounds\" number of times. Return an image of this location 
+with resolution endres x endres.
+"""
 function mbRandZoom(endres, rounds, xMin, xMax, yMax, zoomfac, its)
     res = zoomfac*10
 
@@ -124,8 +140,12 @@ function mbRandZoom(endres, rounds, xMin, xMax, yMax, zoomfac, its)
     end 
     colorInt = rand(1:5)
     colorList = [sWiki, sRed, sPurple, sGreen, sBlue]
-    mandelbrot(endres, xMin1, xMax1, yMax1, its)
+    smartMandelbrot(endres, xMin1, xMax1, yMax1, its, colorList[colorInt])
 end 
+
+"""
+quick helper function to save 1-1000 files automatically
+"""
 function threeDigiter(n)
     if n < 10
         return "00"*string(n)
@@ -135,6 +155,13 @@ function threeDigiter(n)
         return string(n)
     end
 end
-for i in 105:125
-    @time save( "randelbrot\\bigtest"*threeDigiter(i)*".png", map(clamp01nan, mbRandZoom(2000, 4, -1.6, -1.3, 0.1, 10, 25000)))
-end
+"""
+quick test for speed
+"""
+function benchmark(n, endres, rounds, xMin, xMax, yMax, zoomfac, its)
+    results = [ @elapsed mbRandZoom(endres, rounds, xMin, xMax, yMax, zoomfac, its) for i =1:n ]
+    println("Average runtime was ", mean(results), "s.")
+    println("Standard deviation of runtime was ", std(results), "s.")
+end 
+
+benchmark(100, 500, 4, -1.4,-1.3, 0.1, 10, 25000)
