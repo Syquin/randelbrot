@@ -26,6 +26,12 @@ end
 =#
 
 
+"""
+mandelLeaveTime(f, c, n, bound)
+
+Get the number of iterations to leave the bounded region, trying n iterations, for
+a Mandelbrot-like function f, location c.
+"""
 function mandelLeaveTime(f, c, n, bound)
     z = 0 + 0*im
     b2 = bound^2
@@ -41,8 +47,8 @@ function mandelLeaveTime(f, c, n, bound)
     return n+1
 end
 
-# some functions which make color gradients work
-#makeColorTracker(n) = t -> ((n+ 1 -t)/(n+1))^
+# a map from {1, ..., n} to [0,1] to make color gradients pretty 
+# across different scales. something of a placeholder.
 makeColorTracker(n) = t ->  t < 0 ? 0 : (t == n+1 ? 0 : ((t^(1/5)) % 10)/10)
 
 
@@ -51,6 +57,12 @@ makeColorTracker(n) = t ->  t < 0 ? 0 : (t == n+1 ? 0 : ((t^(1/5)) % 10)/10)
     The Julia set consists of the points z such that (f_c)^n(z) does not go
     to infinity. The value returned is decided in the same way as before.
 =#
+"""
+juliaLeaveTime(f, z, c, n, bound)
+
+Get the number of iterations to leave the bounded region, trying n iterations, for
+a julia set function f, location z, parameter c.
+"""
 function juliaLeaveTime(f, z, c, n, bound)
     b2 = bound^2
     if abs2(z) >=  b2
@@ -110,7 +122,9 @@ function grayliaH(xRes, parameter, center, width, its)
 end
 
 
-
+"""
+mandelbrot helper function. does most of the actual work
+"""
 function mandelbrotH(f, xRes, center, width, its)
     dx = width/xRes
     topleft = center + width/2*(im-1) 
@@ -145,13 +159,23 @@ function mandelbrotH(f, xRes, center, width, its)
     end
     matrix2
 end
-mandelbrot(xRes, center, width, its, coloring=sThermal) = coloring.(mandelbrotH(mbf, xRes, center, width, its))
+"""
+mandelbrot(xRes, center, width, its, coloring=sWiki)
+
+Get a mandelbrot image with center center, width width, its iterations, resolution xRes by xRes. Can pick color gradient with coloring.
+"""
+mandelbrot(xRes, center, width, its, coloring=sWiki) = coloring.(mandelbrotH(mbf, xRes, center, width, its))
 
 
 # Generate a graph of the Burning Ship with x values in the range xr,
 # y values in the range yr, and a maximum number of n iterations.
 
-burningship(xRes, center, width, its, coloring=sThermal) = coloring.(mandelbrotH(bsf, xRes, center, width, its))
+"""
+burningShip(xRes, center, width, its, coloring=sWiki)
+
+Get a Burning Ship image with center center, width width, its iterations, resolution xRes by xRes. Can pick color gradient with coloring.
+"""
+burningShip(xRes, center, width, its, coloring=sWiki) = coloring.(mandelbrotH(bsf, xRes, center, width, its))
 
 
 # Generate a graph of the Julia set with c = (real + i*imaginary),
@@ -191,4 +215,10 @@ function juliaSetH(xRes, c, center, width, its)
     end
     matrix2
 end
+
+"""
+juliaSet(xRes, c, center, width, its, coloring=sWiki)
+
+Get a julia set image with parameter c, center center, width width, its iterations, resolution xRes by xRes. Can pick color gradient with coloring.
+"""
 juliaSet(xRes, c, center, width, its, coloring=sWiki) = coloring.(juliaSetH(xRes, c, center, width, its))
