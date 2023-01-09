@@ -1,6 +1,8 @@
 include("sGradients.jl")
 using ImageFiltering
 
+
+
 """
 mandelbrot defining function
 """
@@ -13,7 +15,7 @@ burning ship defining function
 """
 function bsf(z::Complex, c::Complex) 
     (x,y) =(real(z), imag(z))
-    (abs(x) + abs(y)*im)^2 + c 
+    (abs(x) - abs(y)*im)^2 + c 
 end 
 
 
@@ -25,6 +27,46 @@ end
     The reason to return this value is to color the graph later.
 =#
 
+
+struct FractalWindow  
+    xRes :: Int # horizonal resolution of image 
+    yRes :: Int # vertical resolution of image 
+    center :: Complex # center of image in complex plane 
+    width :: Real # width of image in complex plane 
+end 
+
+
+struct FractalSystem 
+    f # function CxC to C defining the dynamical system 
+    isJulia :: Bool # is it a Julia render rather than Mandelbrot 
+    parameter:: Complex # only relevant for Julia set 
+end 
+
+FSystem(f, i, c=0im) = FractalSystem(f, i, c)
+
+const Mandelbrot = FSystem(mbf, false)
+const BurningShip = FSystem(bsf, false)
+
+function julia(c) 
+    FSystem(mbf, true, c)
+end 
+
+function burningJulia(c) 
+    FSystem(bsf, true, c)
+end 
+
+"""
+indexToComplex(wind::FractalWindow, i, j)
+
+Given pixel indices i,j and a window wind, get complex position of point.
+"""
+function indexToComplex(window::FractalWindow, i, j)
+    dx = window.width/window.xRes
+    aspectRatio = window.yRes/window.xRes 
+    height = window.width*aspectRatio
+    topleft = window.center - window.width/2 + im*height/2 
+    topleft + j*dx - i*dx*im
+end 
 
 """
 mandelLeaveTime(f, c, n, bound)
@@ -49,7 +91,7 @@ end
 
 # a map from {1, ..., n} to [0,1] to make color gradients pretty 
 # across different scales. something of a placeholder.
-makeColorTracker(n) = t ->  t < 0 ? 0 : (t == n+1 ? 0 : ((t^(1/5)) % 10)/10)
+makeColorTracker(n) = t ->  t < 0 ? 0 : (t == n+1 ? 0 : (((t^0.25)*log(t+1)) % 7)/7)
 
 
 #=
@@ -80,20 +122,18 @@ end
 
 
 """
-graybrotH(xRes, xMin, xMax, yMax, its)
+graybrotH(window, its)
 
 Helper function which generates only the raw numerical data for the mandelbrot set before turning it into an RGB image. 
 Used here for edge detection analysis when finding points of interest.
 """
-function graybrotH(xRes, center, width, its)
-    dx = width/xRes
-    topleft = center + width/2*(im-1) 
+function graybrotH(window, its) 
 
-    z(k, l) = topleft + l*dx - k*dx*im
+    z(k, l) = indexToComplex(window, k, l)
 
-    matrix2 = zeros(Float16, (xRes, xRes))
-    Threads.@threads for i in 1:xRes
-        Threads.@threads for j in 1:xRes
+    matrix2 = zeros(Float16, (window.yRes, window.xRes))
+    Threads.@threads for i in 1:window.yRes
+        Threads.@threads for j in 1:window.xRes
             matrix2[i, j] = (mandelLeaveTime(mbf, z(i,j), its, 2))/its
         end
     end
@@ -101,20 +141,17 @@ function graybrotH(xRes, center, width, its)
 end
 
 """
-grayliaH(xRes, xMin, xMax, yMax, its)
+grayliaH(window, its)
 
 Helper function which generates only the raw numerical data for the mandelbrot set before turning it into an RGB image. 
 Used here for edge detection analysis when finding points of interest.
 """
-function grayliaH(xRes, parameter, center, width, its)
-    dx = width/xRes
-    topleft = center + width/2*(im-1) 
+function grayliaH(parameter, window, its)
+    z(k, l) = indexToComplex(window, k, l)
 
-    z(k, l) = topleft + l*dx - k*dx*im
-
-    matrix2 = zeros(Float16, (xRes, xRes))
-    Threads.@threads for i in 1:xRes
-        Threads.@threads for j in 1:xRes
+    matrix2 = zeros(Float16, (window.yRes, window.xRes))
+    Threads.@threads for i in 1:window.yRes
+        Threads.@threads for j in 1:window.xRes
             matrix2[i, j] = (juliaLeaveTime(mbf, z(i,j), parameter, its, 2))/its
         end
     end
@@ -125,91 +162,88 @@ end
 """
 mandelbrot helper function. does most of the actual work
 """
-function mandelbrotH(f, xRes, center, width, its)
-    dx = width/xRes
-    topleft = center + width/2*(im-1) 
-    
+function mandelbrotH(f, window, its, bounds = 2)
 
-    sketch = graybrotH(div(xRes,10), center, width, its)
+    sketchWindow = FractalWindow(div(window.xRes,10), div(window.yRes,10), window.center, window.width )
+    sketch = graybrotH(sketchWindow, its)
+
     edginess = abs.(imfilter(sketch, Kernel.Laplacian()))
-    marked = zeros(Bool, div(xRes,10),div(xRes,10))
+    marked = zeros(Bool, sketchWindow.yRes, sketchWindow.xRes)
 
-    for i in 1:div(xRes,10)
-        for j in 1:div(xRes,10)
+    for i in 1:sketchWindow.yRes
+        for j in 1:sketchWindow.xRes
             if sketch[i,j] == 0 && edginess[i,j] < 0.01
-                marked[i,j] = True 
+                marked[i,j] = true 
             end 
         end 
     end 
-    
-    z(k, l) = topleft + l*dx - k*dx*im
 
+    z(k, l) = indexToComplex(window, k, l)
 
     mark(i,j) = marked[div(i+9, 10),div(j+9, 10)]
     c = makeColorTracker(its)
-    matrix2 = zeros(Float16, (xRes, xRes))
-    Threads.@threads for i in 1:xRes
-        Threads.@threads for j in 1:xRes
+    matrix2 = zeros(Float16, (window.yRes, window.xRes))
+    Threads.@threads for i in 1:window.yRes
+        Threads.@threads for j in 1:window.xRes
             if mark(i, j)
                 matrix2[i,j] = 0
             else
-                matrix2[i, j] = c(mandelLeaveTime(f, z(i,j), its, 2))
+                matrix2[i, j] = c(mandelLeaveTime(f, z(i,j), its, bounds))
             end 
         end
     end
     matrix2
 end
 """
-mandelbrot(xRes, center, width, its, coloring=sWiki)
+mandelbrot(window, its, coloring=sWiki)
 
-Get a mandelbrot image with center center, width width, its iterations, resolution xRes by xRes. Can pick color gradient with coloring.
+Get a Mandelbrot image with given window and iterations. Can pick color gradient with coloring.
 """
-mandelbrot(xRes, center, width, its, coloring=sWiki) = coloring.(mandelbrotH(mbf, xRes, center, width, its))
+mandelbrot(window, its, coloring=sWiki) = coloring.(mandelbrotH(mbf, window, its))
 
 
 # Generate a graph of the Burning Ship with x values in the range xr,
 # y values in the range yr, and a maximum number of n iterations.
 
 """
-burningShip(xRes, center, width, its, coloring=sWiki)
+burningShip(window, its, coloring=sWiki)
 
-Get a Burning Ship image with center center, width width, its iterations, resolution xRes by xRes. Can pick color gradient with coloring.
+Get a Burning Ship image with given window and iterations Can pick color gradient with coloring.
 """
-burningShip(xRes, center, width, its, coloring=sWiki) = coloring.(mandelbrotH(bsf, xRes, center, width, its))
+burningShip(window, its, coloring=sWiki) = coloring.(mandelbrotH(bsf, window, its))
 
 
 # Generate a graph of the Julia set with c = (real + i*imaginary),
 # x values in the range xr, y values in the range yr, and a maximum number of n iterations.
 
-function juliaSetH(xRes, c, center, width, its)
-    dx = width/xRes
-    topleft = center + width/2*(im-1) 
-    
+function juliaSetH(f, c, window, its, bound)
 
-    sketch = graybrotH(div(xRes,10), center, width, its)
+    sketchWindow = FractalWindow(div(window.xRes,10), div(window.yRes,10), window.center, window.width )
+    sketch = grayliaH(c, sketchWindow, its)
+
     edginess = abs.(imfilter(sketch, Kernel.Laplacian()))
-    marked = zeros(Bool, div(xRes,10),div(xRes,10))
+    marked = zeros(Bool, sketchWindow.yRes, sketchWindow.xRes)
 
-    for i in 1:div(xRes,10)
-        for j in 1:div(xRes,10)
+    for i in 1:sketchWindow.yRes
+        for j in 1:sketchWindow.xRes
             if sketch[i,j] == 0 && edginess[i,j] < 0.01
-                marked[i,j] = True 
+                marked[i,j] = true 
             end 
         end 
     end 
     
-    z(k, l) = topleft + l*dx - k*dx*im
-
+    z(k, l) = indexToComplex(window, k, l)
 
     mark(i,j) = marked[div(i+9, 10),div(j+9, 10)]
+
     col = makeColorTracker(its)
-    matrix2 = zeros(Float16, (xRes, xRes))
-    Threads.@threads for i in 1:xRes
-        Threads.@threads for j in 1:xRes
+    matrix2 = zeros(Float16, (window.yRes, window.xRes))
+    Threads.@threads for i in 1:window.yRes
+        Threads.@threads for j in 1:window.xRes
             if mark(i, j)
                 matrix2[i,j] = 0
             else
-                matrix2[i, j] = col(juliaLeaveTime(mbf, z(i,j), c, its, 2))
+                matrix2[i, j] = col(juliaLeaveTime(f, z(i,j), c, its, bound))
             end 
         end
     end
@@ -217,8 +251,19 @@ function juliaSetH(xRes, c, center, width, its)
 end
 
 """
-juliaSet(xRes, c, center, width, its, coloring=sWiki)
+juliaSet(c, window, its, coloring=sWiki)
 
-Get a julia set image with parameter c, center center, width width, its iterations, resolution xRes by xRes. Can pick color gradient with coloring.
+Get a julia set image with parameter c, given window, given number of iterations. Can pick color gradient with coloring.
 """
-juliaSet(xRes, c, center, width, its, coloring=sWiki) = coloring.(juliaSetH(xRes, c, center, width, its))
+juliaSet(c, window, its, coloring=sWiki) = coloring.(juliaSetH(mbf, c, window, its,2))
+
+function prerender(system, window, its, bounds= 2)
+    if system.isJulia
+        return juliaSetH(system.f, system.parameter, window, its, bounds)
+    else 
+        return mandelbrotH(system.f, window, its, bounds)
+    end 
+end 
+
+render(system, window, its, coloring = sWiki, bounds = 2) = coloring.(prerender(system, window, its, bounds))
+

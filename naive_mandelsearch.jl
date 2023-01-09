@@ -4,6 +4,12 @@ using ImageIO
 using ImageFiltering
 using Statistics
 
+function zoomWindow(window::FractalWindow, zoomfactor, targeti, targetj)
+    z(i, j) = indexToComplex(window, i, j)
+    newCenter = z(targeti,targetj)
+    newWidth = window.width/zoomfactor
+    FractalWindow(window.xRes, window.yRes, newCenter, newWidth)
+end 
 
 """
 mbPointOfInterest(xRes, center, width, its)
@@ -11,19 +17,19 @@ mbPointOfInterest(xRes, center, width, its)
 Given a window to view and number of iterations in the Mandelbrot set, use the discrete Laplacian to highlight edges. 
 Pick the indices of a random point, weighted by the square of the discrete Laplacian.
 """
-function mbPointOfInterest(xRes, center, width, its)
-    imgmat = graybrotH(xRes, center, width, its)
+function mbPointOfInterest(window, its)
+    imgmat = graybrotH(window, its)
     moddedimg = imfilter(imgmat, Kernel.Laplacian())
     total = 0
-    for j in 1:xRes
-        for i in 1:xRes
+    for j in 1:window.xRes 
+        for i in 1:window.yRes 
             total += (moddedimg[i, j])^2
         end
     end
     thresh = total*rand()
     s = 0
-    for j in 1:xRes
-        for i in 1:xRes
+    for j in 1:window.xRes 
+        for i in 1:window.yRes
             s += (moddedimg[i, j])^2
             if s >= thresh
                 return (i, j)
@@ -107,7 +113,7 @@ mbRandZoom(endres, rounds, center, width, zoomfac, its)
 Start with the given center, width, window. Then zoom in with a factor of zoomfac \"rounds\" number of times. Return an image of this location 
 with resolution endres x endres.
 """
-function mbRandZoom(endres, rounds, center, width, zoomfac, its)
+function mbRandZoom(round, startWindow, endres, zoomfac, its)
     res = zoomfac*10
 
     center1 = center
