@@ -32,6 +32,12 @@ function mbPointOfInterest(xRes, center, width, its)
     end
 end  
 
+"""
+jlPointOfInterest(xRes, parameter, center, width, its)
+
+Given a window to view and number of iterations in the Julia set with parameter parameter, use the discrete Laplacian to highlight edges. 
+Pick the indices of a random point, weighted by the square of the discrete Laplacian.
+"""
 function jlPointOfInterest(xRes, parameter, center, width, its)
     imgmat = grayliaH(xRes, parameter, center, width, its)
     moddedimg = imfilter(imgmat, Kernel.Laplacian())
@@ -75,7 +81,7 @@ function showmbPointsOfInterest(points, xRes, center, width, its)
 end 
 
 """
-showjlPointsOfInterest(points, xRes, center, width, its)
+showjlPointsOfInterest(points, xRes, parameter, center, width, its)
 
 Demonstrate jlPointOfInterest by highlighting points number of chosen points in red.
 """
@@ -121,6 +127,12 @@ function mbRandZoom(endres, rounds, center, width, zoomfac, its)
     mandelbrot(endres, center1, width1, its, colorList[colorInt])
 end 
 
+"""
+jlRandZoom(endres, rounds, parameter, center, width, zoomfac, its)
+
+Start with the given parameter, center, width window in a Julia set. Then zoom in with a factor of zoomfac \"rounds\" number of times. Return an image of this location 
+with resolution endres x endres.
+"""
 function jlRandZoom(endres, rounds, parameter, center, width, zoomfac, its)
     res = zoomfac*10
 
