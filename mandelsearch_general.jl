@@ -82,6 +82,37 @@ function randZoom(system, rounds, startWindow, endres, zoomfac, its)
     colorList = [sWiki, sRed, sPurple, sGreen, sBlue]
     render(system, finalWindow, its, colorList[colorInt])
 end 
+"""
+randZoomPoint(system, rounds, startWindow, zoomfac, its)
+
+Similar to randZoom, but return only the center of the final window. Use on a Mandelbrot set to find exciting Julia parameters.
+"""
+function randZoomPoint(system, rounds, startWindow, zoomfac, its)
+    endres = 1000
+    aspectRatio = startWindow.yRes/startWindow.xRes
+    window1 = FractalWindow(endres/10, endres/10, startWindow.center, startWindow.width )
+    width1 = startWindow.width 
+    center1 = startWindow.center 
+    for k in 1:rounds 
+        image = prerender(system, window1, its)
+        
+        (i, j) = imagePointOfInterest(image)
+    
+        width1 = width1/zoomfac
+        center1 = indexToComplex(window1, i, j)
+        window1 = FractalWindow(endres/10, endres/10, center1, width1)
+    end 
+    center1
+end 
+
+function randJulia(rounds, startWindow, zoomfac, endRes, its)
+    parameter = randZoomPoint(Mandelbrot, rounds, startWindow, zoomfac, its)
+    (xR, yR) = endRes
+    jWindow = FractalWindow(xR, yR, 0im, 3)
+    colorInt = rand(1:5)
+    colorList = [sWiki, sRed, sPurple, sGreen, sBlue]
+    render(julia(parameter), jWindow, its, colorList[colorInt])
+end 
 
 """
 quick helper function to save 1-1000 files automatically
