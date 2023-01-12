@@ -144,7 +144,7 @@ end
 
 function julianimate(frames, points, degree, system, window, its)
     f = interpolatePointsOfInterest(points, degree, system, window, its)
-    jWindow = FractalWindow(300, 300, 0, 0.4)
+    jWindow = FractalWindow(300, 300, 0, 0.4
     width = window.width
     center = window.center
     xStart = real(center) - width/2
@@ -239,12 +239,4 @@ function julianimdemo(frames, points, degree, system, window, its)
             "julianimationdemo\\"*threeDigiter(i)*".png", 
             map(clamp01nan, out))
     end 
-end 
-begin 
-fullMWindow = FractalWindow(200, 200, -1.765 +0.01im, 0.1)
-z = randZoomPoint(Mandelbrot, 2, fullMWindow, 5, 10000)
-newWindow = FractalWindow(300, 300, z, 0.005)
-a = render(Mandelbrot, newWindow, 10000)
 end
-
-julianimdemo(600, 50, 4, Mandelbrot, newWindow, 1000)
