@@ -144,7 +144,7 @@ end
 
 function julianimate(frames, points, degree, system, window, its)
     f = interpolatePointsOfInterest(points, degree, system, window, its)
-    jWindow = FractalWindow(300, 300, 0, 0.4
+    jWindow = FractalWindow(300, 300, 0, 0.4)
     width = window.width
     center = window.center
     xStart = real(center) - width/2
@@ -155,7 +155,6 @@ function julianimate(frames, points, degree, system, window, its)
         save(
             "julianimation\\"*threeDigiter(i)*".png", 
             map(clamp01nan, jul))
-        
     end 
 end 
 
