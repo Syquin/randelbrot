@@ -170,10 +170,7 @@ function julianimdemo(frames, points, degree, system, window, its)
     # commenting step by step because something is wrong
     fc(t) = RGB(t, t, t) # lazy grayscale RGB
     image1 = graybrotH(system, mWindow, its) # get preimage 
-    transp = !isMoreHorizontal(image1)
-    if transp
-        image1 = transpose(image1)
-    end  
+
     image = fc.(image1) #color it in gray scale 
     inds = getPointsOfInterest(points, image1) # get however many points 
     z(i, j) = indexToComplex(mWindow, i, j) # what it says 
@@ -240,14 +237,14 @@ function julianimdemo(frames, points, degree, system, window, its)
         out = hcat(image, jul)
         save(
             "julianimationdemo\\"*threeDigiter(i)*".png", 
-            map(clamp01nan, image))
+            map(clamp01nan, out))
     end 
 end 
 begin 
 fullMWindow = FractalWindow(200, 200, -1.765 +0.01im, 0.1)
 z = randZoomPoint(Mandelbrot, 2, fullMWindow, 5, 10000)
 newWindow = FractalWindow(300, 300, z, 0.005)
-render(Mandelbrot, newWindow, 10000)
+a = render(Mandelbrot, newWindow, 10000)
 end
 
-#julianimdemo(600, 50, 4, Mandelbrot, newWindow, 1000)
+julianimdemo(600, 50, 4, Mandelbrot, newWindow, 1000)
