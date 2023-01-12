@@ -127,14 +127,14 @@ graybrotH(window, its)
 Helper function which generates only the raw numerical data for the mandelbrot set before turning it into an RGB image. 
 Used here for edge detection analysis when finding points of interest.
 """
-function graybrotH(window, its) 
+function graybrotH(system, window, its) 
 
     z(k, l) = indexToComplex(window, k, l)
 
     matrix2 = zeros(Float16, (window.yRes, window.xRes))
     Threads.@threads for i in 1:window.yRes
         Threads.@threads for j in 1:window.xRes
-            matrix2[i, j] = (mandelLeaveTime(mbf, z(i,j), its, 2))/its
+            matrix2[i, j] = (mandelLeaveTime(system.f, z(i,j), its, 2))/its
         end
     end
     matrix2
@@ -165,7 +165,7 @@ mandelbrot helper function. does most of the actual work
 function mandelbrotH(f, window, its, bounds = 2)
 
     sketchWindow = FractalWindow(div(window.xRes,10), div(window.yRes,10), window.center, window.width )
-    sketch = graybrotH(sketchWindow, its)
+    sketch = graybrotH(Mandelbrot,sketchWindow, its)
 
     edginess = abs.(imfilter(sketch, Kernel.Laplacian()))
     marked = zeros(Bool, sketchWindow.yRes, sketchWindow.xRes)
